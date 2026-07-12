@@ -10,7 +10,9 @@ __pycache__/
 checkpoints/
 
 # Data
-data/
+data/**/*
+!data/**/
+!data/**/zero_shot_eval.json
 
 # Distribution / packaging
 .Python

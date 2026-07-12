@@ -210,3 +210,5 @@ def save_mask_prompt(image_path, mask, image, prompt, score):
     # export results
     mask = (mask * 255).astype(np.uint8)
     cv2.imwrite(mask_path, mask)
+    
+
