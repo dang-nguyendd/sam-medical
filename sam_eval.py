@@ -121,7 +121,6 @@ def calculate_seg_metrics(results_dir, mask_dir):
     return metrics
 
 
-
 if __name__ == "__main__":
     
     dataset_path = "./data/CVC-ColonDB"
@@ -129,13 +128,22 @@ if __name__ == "__main__":
 
     image_dir = dataset_path / "images"
     mask_dir = dataset_path / "masks"
+    prompts_dir = dataset_path / "prompts"
     results_dir = dataset_path / "results"
-    
+
     # sam inference
     image_paths = sorted(image_dir.glob("*.png"))
 
     for image_path in image_paths:
         filename = image_path.name
+
+        # Skip if already processed
+        prompt_path = prompts_dir / filename
+        result_path = results_dir / filename
+
+        if prompt_path.exists() and result_path.exists():
+            print(f"Skipping {filename}")
+            continue
 
         # Corresponding mask
         mask_path = mask_dir / filename
