@@ -8,7 +8,8 @@ __pycache__/
 
 # Model Checkpoint
 checkpoints/
-
+yolo_sam_v1/data/
+yolo_sam_v1/models/
 # Data
 data/**/*
 !data/**/

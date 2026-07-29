@@ -1,0 +1,3 @@
+[submodule "external/yolov12"]
+	path = external/yolov12
+	url = https://github.com/sunsmarterjie/yolov12
