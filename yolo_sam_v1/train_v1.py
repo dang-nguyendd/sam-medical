@@ -14,6 +14,10 @@ import torch.nn.functional as F
 from segment_anything import SamPredictor, sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
 
+from constants import MODEL
+from functions import InferenceSaver
+
+
 def clip_gradient(optimizer, grad_clip):
     """
     For calibrating misalignment gradient via cliping gradient technique
@@ -42,6 +46,7 @@ def structure_loss(pred, mask):
     wiou = 1 - (inter + 1) / (union - inter + 1)
 
     return (wbce + wiou).mean()
+
 
 def test(model, path, dataset=None):
     model.eval()
@@ -522,57 +527,20 @@ if __name__ == '__main__':
     print(f"Using all {n_images} training images.")
     logging.info(f"Using all {n_images} training images.")
 
+    # YOLO model init 
+    yolo_model = InferenceSaver(MODEL, conf=0.25, iou=0.5)
+    yolo_model.load_model()
+
+    # YOLO inference
     bbox_coords = {}
     for k in img_idxs:
-        im = cv2.imread(gt_root+''+images_path_list[k])
-        gray=cv2.cvtColor(im,cv2.COLOR_BGR2GRAY)
-        
-        y_indices, x_indices = np.where(gray > 0)
-        x_min, x_max = np.min(x_indices), np.max(x_indices)
-        y_min, y_max = np.min(y_indices), np.max(y_indices)
-        
-        # add perturbation to bounding box coordinates
-        H, W = gray.shape
-        
-        ###### For fixed perturbations
-        #x_min = max(0, x_min - perturb_h_len) 
-        #x_max = min(W, x_max + perturb_h_len) 
-        #y_min = max(0, y_min - perturb_h_len) 
-        #y_max = min(H, y_max + perturb_h_len)
-
-        ###### For variable perturbations
-        x_min = max(0, x_min - np.random.randint(perturb_l_len, perturb_h_len))
-        x_max = min(W, x_max + np.random.randint(perturb_l_len, perturb_h_len))
-        y_min = max(0, y_min - np.random.randint(perturb_l_len, perturb_h_len))
-        y_max = min(H, y_max + np.random.randint(perturb_l_len, perturb_h_len))
-        bbox_coords[images_path_list[k]] = np.array([x_min, y_min, x_max, y_max])
-        
-    # # print(bbox_coords)
-    # transformed_data = defaultdict(dict)
-    # masks = defaultdict(dict)
-    # transform = ResizeLongestSide(model.image_encoder.img_size)
-
-    # for k in img_idxs:
-    #     image = cv2.imread(image_root+''+images_path_list[k])
-    #     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    #     mask = cv2.imread(gt_root+''+images_path_list[k], cv2.IMREAD_GRAYSCALE)
-    #     mask = mask/255.0
-
-    #     print(f"Processing {images_path_list[k]}")
-    #     print(image.shape, image.dtype)
-
-    #     input_image = transform.apply_image(image)
-    #     input_image_torch = torch.as_tensor(input_image, device='cuda')
-    #     transformed_image = input_image_torch.permute(2, 0, 1).contiguous()[None, :, :, :]
-  
-    #     input_image = model.preprocess(transformed_image)
-    #     original_image_size = image.shape[:2]
-    #     input_size = tuple(transformed_image.shape[-2:])
-
-    #     transformed_data[images_path_list[k]]['image'] = input_image
-    #     transformed_data[images_path_list[k]]['input_size'] = input_size
-    #     transformed_data[images_path_list[k]]['original_image_size'] = original_image_size
-    #     masks[images_path_list[k]] = mask   
+        img_name = images_path_list[k]
+        # image path for YOLO inference
+        image_path = os.path.join(image_root, img_name)
+   
+        prompt_box = yolo_model.inference(image_path)
+        if prompt_box is not None:
+            bbox_coords[images_path_list[k]] = prompt_box
 
     train_files = [images_path_list[k] for k in img_idxs]
     total_step = len(train_files)
