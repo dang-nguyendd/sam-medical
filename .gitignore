@@ -17,6 +17,7 @@ yolo_sam_v1/models/
 data/**/*
 !data/**/
 !data/**/zero_shot_eval.json
+*inferences/
 
 # Distribution / packaging
 .Python

@@ -57,8 +57,8 @@ def load_mask(mask_path):
 
 def test(model, bbox_coords_test, test_files):
 
-    image_root = "./data/CVC-ColonDB/images/test"
-    gt_root    = "./data/CVC-ColonDB/masks/test"
+    image_root = "./data/ETIS-LaribPolypDB/images/test"
+    gt_root    = "./data/ETIS-LaribPolypDB/masks/test"
 
     model.eval()
     predictor_tuned = SamPredictor(model)
@@ -170,8 +170,8 @@ def validate(model, bbox_coords_val, val_files):
     model.eval()
     predictor_tuned = SamPredictor(model)
 
-    image_root = "./data/CVC-ColonDB/images/val"
-    gt_root    = "./data/CVC-ColonDB/masks/val"
+    image_root = "./data/ETIS-LaribPolypDB/images/val"
+    gt_root    = "./data/ETIS-LaribPolypDB/masks/val"
 
     images_path_list = sorted(val_files)
 
@@ -233,19 +233,22 @@ def train(
 
     for image_name in image_list:
         optimizer.zero_grad()
+
+        image_root = "./data/ETIS-LaribPolypDB/images/train"
+        gt_root    = "./data/ETIS-LaribPolypDB/masks/train"
         image_path = os.path.join(image_root, image_name)
+
         image = cv2.imread(image_path)
-        
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         mask = load_mask(os.path.join(gt_root, image_name))
 
-        input_image = transform.apply_image(image)
-
+        input_image_np = transform.apply_image(image)
         input_image = torch.as_tensor(
-            input_image,
+            input_image_np,
             device="cuda"
         )
+        del input_image_np
 
         transformed_image = (
             input_image.permute(2,0,1)
@@ -396,13 +399,11 @@ if __name__ == '__main__':
         'training_time': None
     }
 
-    perturb_h_len = 50
-    perturb_l_len = 0
     freeze_image_encoder = 1
     freeze_decoder = 1
     
     ##################model_name#############################
-    model_name = 'PolypSAM_freeze_mask_decoder_vit_b_train_p'+str(perturb_l_len)+'_'+str(perturb_h_len)+'_test_p30_Kvasirbest_bs1_random_shot_e100_Run1' 
+    model_name = 'YOLOSAM_v1_run1_ETIS-LaribPolypDB' 
     ###############################################
     print(model_name)
     parser = argparse.ArgumentParser()
@@ -411,7 +412,7 @@ if __name__ == '__main__':
                         default=100, help='epoch number')
 
     parser.add_argument('--lr', type=float,
-                        default=1e-4, help='learning rate')
+                        default=1e-3, help='learning rate')
 
     parser.add_argument('--optimizer', type=str,
                         default='AdamW', help='choosing optimizer AdamW or SGD')
@@ -433,21 +434,6 @@ if __name__ == '__main__':
 
     parser.add_argument('--decay_epoch', type=int,
                         default=300, help='every n epochs decay learning rate')
-
-    parser.add_argument(
-        '--train_path',
-        default='./data/CVC-ColonDB/train'
-    )
-
-    parser.add_argument(
-        '--val_path',
-        default='./data/CVC-ColonDB/val'
-    )
-
-    parser.add_argument(
-        '--test_path',
-        default='./data/CVC-ColonDB/test'
-    )
 
     parser.add_argument('--train_save', type=str,
         default='./model_pth/'+model_name+'/')
@@ -500,17 +486,15 @@ if __name__ == '__main__':
     # YOLO model init 
     yolo_model = InferenceSaver(MODEL, conf=0.25, iou=0.5)
     yolo_model.load_model()
-
-    #___ YOLO inference Training ___
     
     for ds in datasets:
-        image_root = f"./data/CVC-ColonDB/images/{ds}"
-        gt_root = f"./data/CVC-ColonDB/masks/{ds}"
+        image_root = f"./data/ETIS-LaribPolypDB/images/{ds}"
+        gt_root = f"./data/ETIS-LaribPolypDB/masks/{ds}"
 
         # sort images
         images_path_list = sorted(
             f for f in os.listdir(image_root)
-            if f.endswith((".jpg", ".png"))
+            if f.endswith((".jpg", ".png", ".tif"))
         )
 
         for img_name in images_path_list:
