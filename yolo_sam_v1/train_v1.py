@@ -55,7 +55,7 @@ def load_mask(mask_path):
         mask = mask[:, :, 0]
     return mask.astype(np.float32) / 255.0
 
-def test(model):
+def test(model, bbox_coords_test, test_files):
 
     image_root = "./data/CVC-ColonDB/images/test"
     gt_root    = "./data/CVC-ColonDB/masks/test"
@@ -63,12 +63,7 @@ def test(model):
     model.eval()
     predictor_tuned = SamPredictor(model)
 
-    images_path_list = sorted(
-        [
-            f for f in os.listdir(image_root)
-            if f.endswith(('.jpg', '.png', '.jpeg'))
-        ]
-    )
+    images_path_list = sorted(test_files)
 
     num_images = len(images_path_list)
 
@@ -92,19 +87,7 @@ def test(model):
 
             mask = load_mask(os.path.join(gt_root, image_name))
 
-            # image path for YOLO inference
-            image_path = os.path.join(image_root, img_name)
-            prompt_box = yolo_model.inference(image_path)
-
-            if prompt_box is None:
-                # Read image to get its dimensions
-                image = cv2.imread(image_path)
-                H, W = image.shape[:2]
-                # Use the full image as the bounding box
-                prompt_box = np.array([0, 0, W - 1, H - 1], dtype=np.float32)
-
-                print(f"[WARNING] No YOLO detection for {img_name} in Testing. Using full image bbox: {prompt_box}")
-
+            prompt_box = bbox_coords_test[image_name]
 
             predictor_tuned.set_image(image)
 
@@ -183,47 +166,30 @@ def test(model):
 
     return results
 
-def validate(yolo_model, model):
+def validate(model, bbox_coords_val, val_files):
     model.eval()
     predictor_tuned = SamPredictor(model)
 
     image_root = "./data/CVC-ColonDB/images/val"
     gt_root    = "./data/CVC-ColonDB/masks/val"
 
-    images_path_list = sorted(
-        [f for f in os.listdir(image_root)
-        if f.endswith(('.jpg', '.png', '.jpeg'))]
-    )
-
-    num1 = len(images_path_list)
+    images_path_list = sorted(val_files)
 
     DSC = 0.0
     with torch.no_grad():
-        for i in range(num1):
-            image = cv2.imread(image_root+''+images_path_list[i])
+        for image_name in sorted(val_files):
             image = cv2.imread(
-                os.path.join(image_root, images_path_list[i])
+                os.path.join(image_root, image_name)
             )
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-            mask = load_mask(os.path.join(gt_root, images_path_list[i]))
-            # image path for YOLO inference
-            image_path = os.path.join(image_root, img_name)
-            prompt_box = yolo_model.inference(image_path)
-
-            if prompt_box is None:
-                # Read image to get its dimensions
-                image = cv2.imread(image_path)
-                H, W = image.shape[:2]
-                # Use the full image as the bounding box
-                prompt_box = np.array([0, 0, W - 1, H - 1], dtype=np.float32)
-
-                print(f"[WARNING] No YOLO detection for {img_name} in Validation. Using full image bbox: {prompt_box}")
-
+            mask = load_mask(os.path.join(gt_root, image_name))
+            box = bbox_coords_val[image_name]
+            
             predictor_tuned.set_image(image)
             pred, _, _ = predictor_tuned.predict(
                 point_coords=None,
-                box=prompt_box,
+                box=box,
                 multimask_output=False,
             )    
             # eval Dice
@@ -239,13 +205,15 @@ def validate(yolo_model, model):
             dice = float(dice)
             DSC = DSC + dice
 
-    return DSC / num1, num1
+    return DSC / len(images_path_list), len(images_path_list)
 
 def train(
         image_list, 
         bbox_coords,
         yolo_model, 
-        sam_model, 
+        sam_model,
+        bbox_coords_val,
+        val_files, 
         optimizer, 
         epoch, 
         model_name='SAM'):
@@ -402,7 +370,7 @@ def train(
 
     if (epoch + 1) % 1 == 0:
 
-        dataset_dice, n_images = validate(yolo_model, sam_model)
+        dataset_dice, n_images = validate(sam_model, bbox_coords_val, val_files)
         sam_model.train()
 
         meandice = dataset_dice
@@ -515,46 +483,65 @@ if __name__ == '__main__':
         optimizer = torch.optim.SGD(params, opt.lr, weight_decay=1e-4, momentum=0.9)
 
     print(optimizer)
-    image_root = "./data/CVC-ColonDB/images/train"
-    gt_root    = "./data/CVC-ColonDB/masks/train"
 
-    # sort images
-    images_path_list = sorted([f for f in os.listdir(image_root) if f.endswith('.jpg') or f.endswith('.png')])
-    
-    # Use all images in the training set
-    img_idxs = list(range(len(images_path_list)))
-    n_images = len(img_idxs)
+    # ===========================
+    # YOLO inference
+    # ===========================
+    datasets = ["train", "val", "test"]
 
-    print(f"Using all {n_images} training images.")
-    logging.info(f"Using all {n_images} training images.")
+    bbox_coords = {}
+    bbox_coords_val = {}
+    bbox_coords_test = {}
+
+    train_files = []
+    val_files = []
+    test_files = []
 
     # YOLO model init 
     yolo_model = InferenceSaver(MODEL, conf=0.25, iou=0.5)
     yolo_model.load_model()
 
-    # YOLO inference
-    bbox_coords = {}
-    for k in img_idxs:
-        img_name = images_path_list[k]
-        # image path for YOLO inference
-        image_path = os.path.join(image_root, img_name)
-   
-        prompt_box = yolo_model.inference(image_path)
+    #___ YOLO inference Training ___
+    
+    for ds in datasets:
+        image_root = f"./data/CVC-ColonDB/images/{ds}"
+        gt_root = f"./data/CVC-ColonDB/masks/{ds}"
 
-        if prompt_box is None:
-            # Read image to get its dimensions
-            image = cv2.imread(image_path)
-            H, W = image.shape[:2]
-            # Use the full image as the bounding box
-            prompt_box = np.array([0, 0, W - 1, H - 1], dtype=np.float32)
+        # sort images
+        images_path_list = sorted(
+            f for f in os.listdir(image_root)
+            if f.endswith((".jpg", ".png"))
+        )
 
-            print(f"[WARNING] No YOLO detection for {img_name} in Training. Using full image bbox: {prompt_box}")
+        for img_name in images_path_list:
+            image_path = os.path.join(image_root, img_name)
 
-        bbox_coords[images_path_list[k]] = prompt_box
+            prompt_box = yolo_model.inference(image_path)
 
-    train_files = [images_path_list[k] for k in img_idxs]
-    total_step = len(train_files)
+            if prompt_box is None:
+                print(f"[WARNING] No YOLO detection for {img_name} ({ds}). Skipping.")
+                continue
 
+            if ds == "train":
+                bbox_coords[img_name] = prompt_box
+                train_files.append(img_name)
+
+            elif ds == "val":
+                bbox_coords_val[img_name] = prompt_box
+                val_files.append(img_name)
+
+            elif ds == "test":
+                bbox_coords_test[img_name] = prompt_box
+                test_files.append(img_name)
+
+        total_step = len(train_files)
+        print(f"Training images : {len(train_files)}")
+        print(f"Validation images: {len(val_files)}")
+        print(f"Test images      : {len(test_files)}")
+
+        logging.info(f"Training images : {len(train_files)}")
+        logging.info(f"Validation images: {len(val_files)}")
+        logging.info(f"Test images      : {len(test_files)}")
 
     print("#" * 20, "Start Training", "#" * 20)
     total_train_time = 0
@@ -571,6 +558,8 @@ if __name__ == '__main__':
             bbox_coords,
             yolo_model,
             model,
+            bbox_coords_val,
+            val_files,
             optimizer,
             epoch,
             model_name=model_name
@@ -590,9 +579,7 @@ if __name__ == '__main__':
 
     model.eval()
 
-
-
-    test_results = test(model)
+    test_results = test(model, bbox_coords_test, test_files)
 
     dict_plot['test'] = test_results
     print("Final Test Results:")
