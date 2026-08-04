@@ -47,18 +47,21 @@ def structure_loss(pred, mask):
 
     return (wbce + wiou).mean()
 
+def load_mask(mask_path):
+    mask = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
+    if mask is None:
+        raise FileNotFoundError(mask_path)
+    if mask.ndim == 3:
+        mask = mask[:, :, 0]
+    return mask.astype(np.float32) / 255.0
 
-def test(model, path, dataset=None):
+def test(model):
+
+    image_root = "./data/CVC-ColonDB/images/test"
+    gt_root    = "./data/CVC-ColonDB/masks/test"
+
     model.eval()
     predictor_tuned = SamPredictor(model)
-
-    if dataset is None:
-        data_path = path
-    else:
-        data_path = os.path.join(path, dataset)
-
-    image_root = os.path.join(data_path, "images")
-    gt_root = os.path.join(data_path, "masks")
 
     images_path_list = sorted(
         [
@@ -87,42 +90,27 @@ def test(model, path, dataset=None):
                 cv2.COLOR_BGR2RGB
             )
 
-            mask = cv2.imread(
-                os.path.join(gt_root, image_name),
-                cv2.IMREAD_GRAYSCALE
-            )
+            mask = load_mask(os.path.join(gt_root, image_name))
 
-            mask = mask / 255.0
+            # image path for YOLO inference
+            image_path = os.path.join(image_root, img_name)
+            prompt_box = yolo_model.inference(image_path)
 
-            H, W = mask.shape
+            if prompt_box is None:
+                # Read image to get its dimensions
+                image = cv2.imread(image_path)
+                H, W = image.shape[:2]
+                # Use the full image as the bounding box
+                prompt_box = np.array([0, 0, W - 1, H - 1], dtype=np.float32)
 
-            # Get bounding box from ground truth
-            y_indices, x_indices = np.where(mask > 0)
+                print(f"[WARNING] No YOLO detection for {img_name} in Testing. Using full image bbox: {prompt_box}")
 
-            if len(x_indices) == 0 or len(y_indices) == 0:
-                x_min, x_max = 0, W - 1
-                y_min, y_max = 0, H - 1
-            else:
-                x_min, x_max = np.min(x_indices), np.max(x_indices)
-                y_min, y_max = np.min(y_indices), np.max(y_indices)
-
-            # perturb bbox
-            perturb_h_len = 30
-
-            x_min = max(0, x_min - perturb_h_len)
-            x_max = min(W, x_max + perturb_h_len)
-            y_min = max(0, y_min - perturb_h_len)
-            y_max = min(H, y_max + perturb_h_len)
-
-            input_bbox = np.array(
-                [x_min, y_min, x_max, y_max]
-            )
 
             predictor_tuned.set_image(image)
 
             pred, _, _ = predictor_tuned.predict(
                 point_coords=None,
-                box=input_bbox,
+                box=prompt_box,
                 multimask_output=False,
             )
 
@@ -195,17 +183,12 @@ def test(model, path, dataset=None):
 
     return results
 
-def validate(model, path, dataset=None):
+def validate(yolo_model, model):
     model.eval()
     predictor_tuned = SamPredictor(model)
 
-    if dataset is None:
-        data_path = path
-    else:
-        data_path = os.path.join(path, dataset)
-
-    image_root = os.path.join(data_path, "images")
-    gt_root = os.path.join(data_path, "masks")
+    image_root = "./data/CVC-ColonDB/images/val"
+    gt_root    = "./data/CVC-ColonDB/masks/val"
 
     images_path_list = sorted(
         [f for f in os.listdir(image_root)
@@ -222,34 +205,25 @@ def validate(model, path, dataset=None):
                 os.path.join(image_root, images_path_list[i])
             )
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            mask = cv2.imread(
-                os.path.join(gt_root, images_path_list[i]),
-                cv2.IMREAD_GRAYSCALE
-            )
-            mask = mask/255.0
-            
-            H, W = mask.shape
-            y_indices, x_indices = np.where(mask > 0)
-            
-            if(len(x_indices) == 0 or len(y_indices) == 0):
-                x_min, x_max = 0, W-1
-                y_min, y_max = 0, H-1
-            else:
-                x_min, x_max = np.min(x_indices), np.max(x_indices)
-                y_min, y_max = np.min(y_indices), np.max(y_indices)
-            
-            # add perturbation to bounding box coordinates        
-            perturb_h_len = 30 #100
-            x_min = max(0, x_min - perturb_h_len)
-            x_max = min(W, x_max + perturb_h_len)
-            y_min = max(0, y_min - perturb_h_len)
-            y_max = min(H, y_max + perturb_h_len)
-            input_bbox = np.array([x_min, y_min, x_max, y_max])
-            predictor_tuned.set_image(image)
 
+            mask = load_mask(os.path.join(gt_root, images_path_list[i]))
+            # image path for YOLO inference
+            image_path = os.path.join(image_root, img_name)
+            prompt_box = yolo_model.inference(image_path)
+
+            if prompt_box is None:
+                # Read image to get its dimensions
+                image = cv2.imread(image_path)
+                H, W = image.shape[:2]
+                # Use the full image as the bounding box
+                prompt_box = np.array([0, 0, W - 1, H - 1], dtype=np.float32)
+
+                print(f"[WARNING] No YOLO detection for {img_name} in Validation. Using full image bbox: {prompt_box}")
+
+            predictor_tuned.set_image(image)
             pred, _, _ = predictor_tuned.predict(
                 point_coords=None,
-                box=input_bbox,
+                box=prompt_box,
                 multimask_output=False,
             )    
             # eval Dice
@@ -267,14 +241,24 @@ def validate(model, path, dataset=None):
 
     return DSC / num1, num1
 
-def train(image_list, yolo_model, sam_model, optimizer, epoch, model_name='SAM'):
+def train(
+        image_list, 
+        bbox_coords,
+        yolo_model, 
+        sam_model, 
+        optimizer, 
+        epoch, 
+        model_name='SAM'):
+    
     sam_model.train()
+    global dict_plot
     global best
     global total_train_time
     time_before_epoch_start = time.time()
     size_rates = [1]
 
     epoch_losses = []
+    epoch_dices = []
     i = 0
     
     transform = ResizeLongestSide(sam_model.image_encoder.img_size)
@@ -286,10 +270,7 @@ def train(image_list, yolo_model, sam_model, optimizer, epoch, model_name='SAM')
         
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        mask = cv2.imread(
-            os.path.join(gt_root, image_name),
-            cv2.IMREAD_GRAYSCALE
-        ).astype(np.float32) / 255.0
+        mask = load_mask(os.path.join(gt_root, image_name))
 
         input_image = transform.apply_image(image)
 
@@ -315,11 +296,7 @@ def train(image_list, yolo_model, sam_model, optimizer, epoch, model_name='SAM')
             image_embedding = sam_model.image_encoder(input_image)
 
         # YOLO inference
-        prompt_box = yolo_model.inference(image_path)
-
-        if prompt_box is None:
-            print(f"No bounding box for {image_path}, skipping.")
-            continue
+        prompt_box = bbox_coords[image_name]
 
         # Convert from original image coordinates to SAM input coordinates
         box = transform.apply_boxes(
@@ -352,9 +329,29 @@ def train(image_list, yolo_model, sam_model, optimizer, epoch, model_name='SAM')
             .unsqueeze(0)
             .cuda()
         )
-        upscaled_masks = sam_model.postprocess_masks(low_res_masks, input_size, original_image_size).cuda()
-        
+        upscaled_masks = sam_model.postprocess_masks(
+            low_res_masks, 
+            input_size, 
+            original_image_size
+        ).cuda()
+
+        gt_binary_mask = gt_binary_mask.squeeze(-1)
+
         loss = structure_loss(upscaled_masks, gt_binary_mask)
+
+        # ===========================
+        # Compute Training Dice
+        # ===========================
+        with torch.no_grad():
+            pred = (torch.sigmoid(upscaled_masks) > 0.5).float()
+
+            intersection = (pred * gt_binary_mask).sum()
+            dice = (2 * intersection + 1e-6) / (
+                pred.sum() + gt_binary_mask.sum() + 1e-6
+            )
+
+            epoch_dices.append(dice.item())
+        # ===========================
 
         loss.backward()
         clip_gradient(optimizer, opt.clip)
@@ -379,13 +376,16 @@ def train(image_list, yolo_model, sam_model, optimizer, epoch, model_name='SAM')
                         
         epoch_losses.append(loss.item())
     avg_train_loss = np.mean(epoch_losses)
+    avg_train_dice = np.mean(epoch_dices)
 
     dict_plot['train_loss'].append(avg_train_loss)
-
+    dict_plot['train_dice'].append(avg_train_dice)
+    
     print(
-        'EPOCH: {} loss: {}'.format(
+        'EPOCH: {} loss: {} dice: {}'.format(
             epoch,
-            avg_train_loss
+            avg_train_loss,
+            avg_train_dice,
         )
     )
 
@@ -400,11 +400,9 @@ def train(image_list, yolo_model, sam_model, optimizer, epoch, model_name='SAM')
     torch.save(sam_model.state_dict(), save_path + '' + model_name + '-last.pth')
     # choose the best model
 
-    global dict_plot
-   
     if (epoch + 1) % 1 == 0:
 
-        dataset_dice, n_images = validate(sam_model, opt.val_path)
+        dataset_dice, n_images = validate(yolo_model, sam_model)
         sam_model.train()
 
         meandice = dataset_dice
@@ -424,6 +422,7 @@ def train(image_list, yolo_model, sam_model, optimizer, epoch, model_name='SAM')
 if __name__ == '__main__':
     dict_plot = {
         'train_loss': [],
+        'train_dice': [],
         'val_dice': [],
         'test': {},
         'training_time': None
@@ -467,20 +466,23 @@ if __name__ == '__main__':
     parser.add_argument('--decay_epoch', type=int,
                         default=300, help='every n epochs decay learning rate')
 
-    parser.add_argument('--train_path', type=str,
-                        default='./data/CVC-ColonDB/',
-                        help='path to train dataset')
+    parser.add_argument(
+        '--train_path',
+        default='./data/CVC-ColonDB/train'
+    )
 
-    parser.add_argument('--val_path', type=str,
-                        default='./data/CVC-ColonDB/',
-                        help='path to validation dataset')
+    parser.add_argument(
+        '--val_path',
+        default='./data/CVC-ColonDB/val'
+    )
 
-    parser.add_argument('--test_path', type=str,
-                        default='./data/CVC-ColonDB/',
-                        help='path to testing Kvasir dataset')
+    parser.add_argument(
+        '--test_path',
+        default='./data/CVC-ColonDB/test'
+    )
 
     parser.add_argument('--train_save', type=str,
-                        default='./model_pth/'+model_name+'/')
+        default='./model_pth/'+model_name+'/')
 
     opt = parser.parse_args()
     logging.basicConfig(filename='log_sam/train_log_'+model_name+'.log',
@@ -513,9 +515,8 @@ if __name__ == '__main__':
         optimizer = torch.optim.SGD(params, opt.lr, weight_decay=1e-4, momentum=0.9)
 
     print(optimizer)
-    image_root = '{}/images/'.format(opt.train_path)
-    gt_root = '{}/masks/'.format(opt.train_path)
-
+    image_root = "./data/CVC-ColonDB/images/train"
+    gt_root    = "./data/CVC-ColonDB/masks/train"
 
     # sort images
     images_path_list = sorted([f for f in os.listdir(image_root) if f.endswith('.jpg') or f.endswith('.png')])
@@ -539,8 +540,17 @@ if __name__ == '__main__':
         image_path = os.path.join(image_root, img_name)
    
         prompt_box = yolo_model.inference(image_path)
-        if prompt_box is not None:
-            bbox_coords[images_path_list[k]] = prompt_box
+
+        if prompt_box is None:
+            # Read image to get its dimensions
+            image = cv2.imread(image_path)
+            H, W = image.shape[:2]
+            # Use the full image as the bounding box
+            prompt_box = np.array([0, 0, W - 1, H - 1], dtype=np.float32)
+
+            print(f"[WARNING] No YOLO detection for {img_name} in Training. Using full image bbox: {prompt_box}")
+
+        bbox_coords[images_path_list[k]] = prompt_box
 
     train_files = [images_path_list[k] for k in img_idxs]
     total_step = len(train_files)
@@ -550,10 +560,16 @@ if __name__ == '__main__':
     total_train_time = 0
 
     for epoch in range(1, opt.epoch):
+        import os
+        import psutil
+
+        process = psutil.Process(os.getpid())
+        print(f"RAM: {process.memory_info().rss / 1024**2:.1f} MB")
         adjust_lr(optimizer, opt.lr, epoch, opt.decay_rate, opt.decay_epoch)
         train(
             train_files,
             bbox_coords,
+            yolo_model,
             model,
             optimizer,
             epoch,
@@ -574,7 +590,9 @@ if __name__ == '__main__':
 
     model.eval()
 
-    test_results = test(model, opt.test_path)
+
+
+    test_results = test(model)
 
     dict_plot['test'] = test_results
     print("Final Test Results:")

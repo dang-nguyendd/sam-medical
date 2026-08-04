@@ -3,7 +3,7 @@ import os
 # === CONFIGURATION ===
 
 # MODEL OPTIONS: ["yolo11", "yolo12", "yolow"]
-MODEL = "yolo11"
+MODEL = "yolo12"
 ALL_MODELS = ["yolo11", "yolo12", "yolow"]
 
 # DATA OPTIONS: ["CVC-ClinicDB", "CVC-ColonDB"]

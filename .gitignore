@@ -6,7 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
-# Model Checkpoint
+# Model checkpoints
+*.pth
+model_pth/
+yolo_sam_v1/model_pth/
 checkpoints/
 yolo_sam_v1/data/
 yolo_sam_v1/models/
