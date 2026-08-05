@@ -57,8 +57,8 @@ def load_mask(mask_path):
 
 def test(model, bbox_coords_test, test_files):
 
-    image_root = "./data/ETIS-LaribPolypDB/images/test"
-    gt_root    = "./data/ETIS-LaribPolypDB/masks/test"
+    image_root = "./data/CVC-ClinicDB/images/test"
+    gt_root    = "./data/CVC-ClinicDB/masks/test"
 
     model.eval()
     predictor_tuned = SamPredictor(model)
@@ -170,8 +170,8 @@ def validate(model, bbox_coords_val, val_files):
     model.eval()
     predictor_tuned = SamPredictor(model)
 
-    image_root = "./data/ETIS-LaribPolypDB/images/val"
-    gt_root    = "./data/ETIS-LaribPolypDB/masks/val"
+    image_root = "./data/CVC-ClinicDB/images/val"
+    gt_root    = "./data/CVC-ClinicDB/masks/val"
 
     images_path_list = sorted(val_files)
 
@@ -234,8 +234,8 @@ def train(
     for image_name in image_list:
         optimizer.zero_grad()
 
-        image_root = "./data/ETIS-LaribPolypDB/images/train"
-        gt_root    = "./data/ETIS-LaribPolypDB/masks/train"
+        image_root = "./data/CVC-ClinicDB/images/train"
+        gt_root    = "./data/CVC-ClinicDB/masks/train"
         image_path = os.path.join(image_root, image_name)
 
         image = cv2.imread(image_path)
@@ -403,7 +403,7 @@ if __name__ == '__main__':
     freeze_decoder = 1
     
     ##################model_name#############################
-    model_name = 'YOLOSAM_v1_run1_ETIS-LaribPolypDB' 
+    model_name = 'YOLOSAM_v1_run1_CVC-ClinicDB' 
     ###############################################
     print(model_name)
     parser = argparse.ArgumentParser()
@@ -488,8 +488,8 @@ if __name__ == '__main__':
     yolo_model.load_model()
     
     for ds in datasets:
-        image_root = f"./data/ETIS-LaribPolypDB/images/{ds}"
-        gt_root = f"./data/ETIS-LaribPolypDB/masks/{ds}"
+        image_root = f"./data/CVC-ClinicDB/images/{ds}"
+        gt_root = f"./data/CVC-ClinicDB/masks/{ds}"
 
         # sort images
         images_path_list = sorted(

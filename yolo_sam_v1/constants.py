@@ -7,7 +7,7 @@ MODEL = "yolo12"
 ALL_MODELS = ["yolo11", "yolo12", "yolow"]
 
 # DATA OPTIONS: ["CVC-ClinicDB", "CVC-ColonDB", "ETIS-LaribPolypDB"]
-DATA = "CVC-ColonDB"
+DATA = "CVC-ClinicDB"
 
 
 data_root = f"./data/{DATA}/"
