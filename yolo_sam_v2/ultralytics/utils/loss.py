@@ -257,15 +257,8 @@ class v8DetectionLoss:
         loss[1] *= self.hyp.cls  # cls gain
         loss[2] *= self.hyp.dfl  # dfl gain
 
-        # return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
-        return {
-            "loss": loss.sum() * batch_size,
-            "loss_items": loss.detach(),
-            "pred_boxes": pred_bboxes,
-            "pred_scores": pred_scores.sigmoid(),
-            "anchors": anchor_points,
-            "stride": stride_tensor,
-        }
+        return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
+
 
 class v8SegmentationLoss(v8DetectionLoss):
     """Criterion class for computing training losses."""

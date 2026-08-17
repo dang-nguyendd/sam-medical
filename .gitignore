@@ -13,11 +13,19 @@ yolo_sam_v1/model_pth/
 checkpoints/
 yolo_sam_v1/data/
 yolo_sam_v1/models/
+
+yolo_sam_v2/data/
+yolo_sam_v2/docker/
+yolo_sam_v2/examples/
+yolo_sam_v2/logs/
+yolo_sam_v2/tests/
+
 # Data
 data/**/*
 !data/**/
 !data/**/zero_shot_eval.json
 *inferences/
+*.zip
 
 # Distribution / packaging
 .Python

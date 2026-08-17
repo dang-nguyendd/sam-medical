@@ -26,8 +26,8 @@ def load_mask(mask_path):
 
 def test(model, bbox_coords_test, test_files):
 
-    image_root = "./data/CVC-ColonDB/images/test"
-    gt_root    = "./data/CVC-ColonDB/masks/test"
+    image_root = "./data/CVC-ClinicDB/images/test"
+    gt_root    = "./data/CVC-ClinicDB/masks/test"
 
     model.eval()
     predictor_tuned = SamPredictor(model)
@@ -152,8 +152,8 @@ if __name__ == '__main__':
     #___ YOLO inference Training ___
 
     for ds in datasets:
-        image_root = f"./data/CVC-ColonDB/images/{ds}"
-        gt_root = f"./data/CVC-ColonDB/masks/{ds}"
+        image_root = f"./data/CVC-ClinicDB/images/{ds}"
+        gt_root = f"./data/CVC-ClinicDB/masks/{ds}"
 
         # sort images
         images_path_list = sorted(
@@ -184,7 +184,7 @@ if __name__ == '__main__':
 
     model.load_state_dict(
         torch.load(
-            os.path.join("./model_pth/YOLOSAM_v1_run1_CVC-ColonDB/YOLOSAM_v1_run1_CVC-ColonDB-best.pth")
+            os.path.join("./model_pth/YOLOSAM_v1_freeze_image_run1_CVC-ClinicDB/YOLOSAM_v1_freeze_image_run1_CVC-ClinicDB-best.pth")
         )
     )
 

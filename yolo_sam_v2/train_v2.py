@@ -10,14 +10,54 @@ import cv2
 import pickle
 import torch
 import torch.nn.functional as F
-import gc
 
 from segment_anything import SamPredictor, sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
+from .ultralytics import YOLO
 
-from constants import MODEL
-from functions import InferenceSaver
+def transform_boxes_torch(boxes, original_size, target_size):
+    """
+    Transform boxes from original image coordinates
+    to SAM's transformed image coordinates.
 
+    boxes: [B, 4] in xyxy
+    original_size: (H, W)
+    target_size: (H', W')
+    """
+
+    old_h, old_w = original_size
+    new_h, new_w = target_size
+
+    scale = min(
+        new_h / old_h,
+        new_w / old_w
+    )
+
+    boxes = boxes.clone()
+
+    boxes[:, [0, 2]] *= scale
+    boxes[:, [1, 3]] *= scale
+
+    return boxes
+
+def mask_to_bbox(mask):
+    """
+    Convert binary mask [H, W] to xyxy bounding box.
+    """
+    ys, xs = np.where(mask > 0.5)
+
+    if len(xs) == 0:
+        return None
+
+    x_min = xs.min()
+    y_min = ys.min()
+    x_max = xs.max()
+    y_max = ys.max()
+
+    return np.array(
+        [x_min, y_min, x_max, y_max],
+        dtype=np.float32
+    )
 
 def clip_gradient(optimizer, grad_clip):
     """
@@ -185,6 +225,18 @@ def validate(model, bbox_coords_val, val_files):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
             mask = load_mask(os.path.join(gt_root, image_name))
+
+            gt_box = mask_to_bbox(mask)
+
+            if gt_box is None:
+                continue
+
+            gt_box = torch.tensor(
+                gt_box,
+                dtype=torch.float32,
+                device="cuda"
+            ).unsqueeze(0)
+
             box = bbox_coords_val[image_name]
             
             predictor_tuned.set_image(image)
@@ -209,8 +261,7 @@ def validate(model, bbox_coords_val, val_files):
     return DSC / len(images_path_list), len(images_path_list)
 
 def train(
-        image_list, 
-        bbox_coords,
+        image_list,
         yolo_model, 
         sam_model,
         bbox_coords_val,
@@ -242,6 +293,31 @@ def train(
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
+        image_rgb = cv2.cvtColor(
+            cv2.imread(image_path),
+            cv2.COLOR_BGR2RGB
+        )
+
+        # YOLO input
+        yolo_image = torch.from_numpy(image_rgb).float()
+        yolo_image = yolo_image.permute(2, 0, 1).unsqueeze(0)
+        yolo_image = yolo_image.cuda() / 255.0
+
+        boxes, scores = yolo_model(yolo_image)
+
+        temperature = 0.1
+        weights = torch.softmax(scores / temperature, dim=1)
+
+        pred_box = (
+            weights.unsqueeze(-1) * boxes
+        ).sum(dim=1)
+
+        box_torch = transform_boxes_torch(
+            pred_box,
+            original_image_size,
+            input_size
+        )
+
         mask = load_mask(os.path.join(gt_root, image_name))
 
         input_image_np = transform.apply_image(image)
@@ -267,21 +343,6 @@ def train(
         else:
             image_embedding = sam_model.image_encoder(input_image)
 
-        # YOLO inference
-        prompt_box = bbox_coords[image_name]
-
-        # Convert from original image coordinates to SAM input coordinates
-        box = transform.apply_boxes(
-            prompt_box[None, :],          # (1, 4)
-            original_image_size
-        )
-
-        box_torch = torch.as_tensor(
-            box,
-            dtype=torch.float32,
-            device='cuda'
-        )  # shape: (1, 4)
- 
         sparse_embeddings, dense_embeddings = sam_model.prompt_encoder(
             points=None,
             boxes=box_torch,
@@ -309,7 +370,16 @@ def train(
 
         gt_binary_mask = gt_binary_mask.squeeze(-1)
 
-        loss = structure_loss(upscaled_masks, gt_binary_mask)
+
+        lambda_seg = 1.0
+        lambda_det = 0.1
+
+        seg_loss = structure_loss(upscaled_masks, gt_binary_mask)
+
+        total_loss = (
+            lambda_seg * seg_loss
+            + lambda_det * det_loss
+        )
 
         # ===========================
         # Compute Training Dice
@@ -325,7 +395,7 @@ def train(
             epoch_dices.append(dice.item())
         # ===========================
 
-        loss.backward()
+        total_loss.backward()
         clip_gradient(optimizer, opt.clip)
         optimizer.step()
 
@@ -339,17 +409,14 @@ def train(
         del upscaled_masks
         del gt_binary_mask
 
-        gc.collect()
-        torch.cuda.empty_cache()
-
         i += 1
         if i % 250 == 0 or i == total_step: 
             print('{} Epoch [{:03d}/{:03d}], Step [{:04d}/{:04d}], '
                 ' loss: {:0.4f}]'.
                 format(datetime.now(), epoch, opt.epoch, i, total_step,
-                        loss.item()))
+                        total_loss.item()))
                         
-        epoch_losses.append(loss.item())
+        epoch_losses.append(total_loss.item())
     avg_train_loss = np.mean(epoch_losses)
     avg_train_dice = np.mean(epoch_dices)
 
@@ -408,7 +475,7 @@ if __name__ == '__main__':
     freeze_prompt = 0
     
     ##################model_name#############################
-    model_name = 'YOLOSAM_v1_freeze_mask_run1c_ETIS-LaribPolypDB' 
+    model_name = 'YOLOSAM_v1_freeze_mask_run1_ETIS-LaribPolypDB' 
     ###############################################
     print(model_name)
     parser = argparse.ArgumentParser()
@@ -452,97 +519,63 @@ if __name__ == '__main__':
     model_type = 'vit_b'
     checkpoint = './checkpoints/sam_vit_b_01ec64.pth'#sam_vit_b_01ec64.pth' #sam_vit_l_0b3195.pth
 
-    model = sam_model_registry[model_type](checkpoint=checkpoint)
+    sam_model = sam_model_registry[model_type](checkpoint=checkpoint)
     if freeze_image_encoder:
         print("Freezing image encoder")
-        for param in model.image_encoder.parameters():
+        for param in sam_model.image_encoder.parameters():
             param.requires_grad = False
     if freeze_decoder:
         print("Freezing mask decoder")
-        for param in model.mask_decoder.parameters():
+        for param in sam_model.mask_decoder.parameters():
             param.requires_grad = False
     if freeze_prompt:
         print("Freezing mask decoder")
-        for param in model.prompt_encoder.parameters():
+        for param in sam_model.prompt_encoder.parameters():
             param.requires_grad = False
+    sam_model.cuda()
 
+    # YOLO model init 
+    yolo = YOLO("./checkpoints/yolov12n.pt")
 
-    checkpoint_path = './model_pth/YOLOSAM_v1_freeze_mask_run1b_ETIS-LaribPolypDB/YOLOSAM_v1_freeze_mask_run1b_ETIS-LaribPolypDB-last.pth'
+    yolo_model = yolo.model
+    yolo_model.cuda()
+    yolo_model.train()
 
-    model.load_state_dict(
-        torch.load(checkpoint_path, map_location='cuda')
-    )
-
-    model.cuda()
-    
     best = 0
 
-    params = list(model.image_encoder.parameters()) + list(model.prompt_encoder.parameters()) + list(model.mask_decoder.parameters()) #+ list(model.out.parameters()) #+ list(model.pvt_cascade.parameters()) #+ list(model.trans2pvt.parameters()) #+ list(model.pvt_stage2.parameters()) + list(model.pvt_norm2.parameters()) + list(model.pvt_stage3.parameters()) + list(model.pvt_norm3.parameters()) + list(model.pvt_stage4.parameters()) + list(model.pvt_norm4.parameters()) + list(model.decoder.parameters()) #.mask_decoder.   
+    params = [
+        p
+        for p in list(yolo_model.parameters())
+                + list(sam_model.parameters())
+        if p.requires_grad
+    ]
 
-    if opt.optimizer == 'AdamW':
-        optimizer = torch.optim.AdamW(params, opt.lr, weight_decay=1e-4)
-        #optimizer = torch.optim.Adam(params, opt.lr, weight_decay=0)
-    else:
-        optimizer = torch.optim.SGD(params, opt.lr, weight_decay=1e-4, momentum=0.9)
+    optimizer = torch.optim.AdamW(
+        params,
+        lr=opt.lr,
+        weight_decay=1e-4
+    )
 
     print(optimizer)
 
-    # ===========================
-    # YOLO inference
-    # ===========================
-    datasets = ["train", "val", "test"]
+    train_files = sorted([
+        f for f in os.listdir("./data/ETIS-LaribPolypDB/images/train")
+        if f.endswith((".jpg", ".png", ".tif"))
+    ])
 
-    bbox_coords = {}
-    bbox_coords_val = {}
-    bbox_coords_test = {}
+    val_files = sorted([
+        f for f in os.listdir("./data/ETIS-LaribPolypDB/images/val")
+        if f.endswith((".jpg", ".png", ".tif"))
+    ])
 
-    train_files = []
-    val_files = []
-    test_files = []
+    test_files = sorted([
+        f for f in os.listdir("./data/ETIS-LaribPolypDB/images/test")
+        if f.endswith((".jpg", ".png", ".tif"))
+    ])
 
-    # YOLO model init 
-    yolo_model = InferenceSaver(MODEL, conf=0.25, iou=0.5)
-    yolo_model.load_model()
-    
-    for ds in datasets:
-        image_root = f"./data/ETIS-LaribPolypDB/images/{ds}"
-        gt_root = f"./data/ETIS-LaribPolypDB/masks/{ds}"
-
-        # sort images
-        images_path_list = sorted(
-            f for f in os.listdir(image_root)
-            if f.endswith((".jpg", ".png", ".tif"))
-        )
-
-        for img_name in images_path_list:
-            image_path = os.path.join(image_root, img_name)
-
-            prompt_box = yolo_model.inference(image_path)
-
-            if prompt_box is None:
-                print(f"[WARNING] No YOLO detection for {img_name} ({ds}). Skipping.")
-                continue
-
-            if ds == "train":
-                bbox_coords[img_name] = prompt_box
-                train_files.append(img_name)
-
-            elif ds == "val":
-                bbox_coords_val[img_name] = prompt_box
-                val_files.append(img_name)
-
-            elif ds == "test":
-                bbox_coords_test[img_name] = prompt_box
-                test_files.append(img_name)
-
-        total_step = len(train_files)
-        print(f"Training images : {len(train_files)}")
-        print(f"Validation images: {len(val_files)}")
-        print(f"Test images      : {len(test_files)}")
-
-        logging.info(f"Training images : {len(train_files)}")
-        logging.info(f"Validation images: {len(val_files)}")
-        logging.info(f"Test images      : {len(test_files)}")
+    print(f"Training images  : {len(train_files)}")
+    print(f"Validation images: {len(val_files)}")
+    print(f"Test images      : {len(test_files)}")
 
     print("#" * 20, "Start Training", "#" * 20)
     total_train_time = 0
@@ -556,10 +589,8 @@ if __name__ == '__main__':
         adjust_lr(optimizer, opt.lr, epoch, opt.decay_rate, opt.decay_epoch)
         train(
             train_files,
-            bbox_coords,
             yolo_model,
-            model,
-            bbox_coords_val,
+            sam_model,
             val_files,
             optimizer,
             epoch,
@@ -572,15 +603,15 @@ if __name__ == '__main__':
     print('avg train time: '+ str(total_train_time/(opt.epoch-1)))
     logging.info('avg train time: '+ str(total_train_time/(opt.epoch-1)))
 
-    model.load_state_dict(
+    sam_model.load_state_dict(
         torch.load(
             os.path.join(opt.train_save, model_name + "-best.pth")
         )
     )
 
-    model.eval()
+    sam_model.eval()
 
-    test_results = test(model, bbox_coords_test, test_files)
+    test_results = test(sam_model, bbox_coords_test, test_files)
 
     dict_plot['test'] = test_results
     print("Final Test Results:")
