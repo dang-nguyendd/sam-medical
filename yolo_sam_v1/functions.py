@@ -5,7 +5,7 @@ import cv2
 import matplotlib.pyplot as plt
 import math
 
-from ultralytics import YOLO, RTDETR, YOLOE, YOLOWorld
+from ultralytics import YOLO, YOLOWorld
 from constants import (yolo12_model_config, yolo12_model_path, yolo12_model_name,
                        yolo11_model_config, yolo11_model_name, yolo11_model_path,
                        yoloworld_model_config, yoloworld_model_name, yoloworld_model_path,

@@ -1,0 +1,279 @@
+================================================================================
+COMPREHENSIVE STATISTICAL ANALYSIS REPORT
+================================================================================
+
+Number of datasets: 3
+Datasets: CVC-ClinicDB, CVC-ColonDB, ETIS-LaribPolypDB
+Number of models: 9
+Models: rtdetr, yolo8, yolo9, yolo10, yolo11, yolo12, yoloe, yolow, yolo26
+
+
+================================================================================
+METRIC: box_mAP@50
+================================================================================
+
+1. DESCRIPTIVE STATISTICS
+----------------------------------------
+
+RTDETR:
+  Mean: 0.8415
+  Median: 0.8891
+  Std Dev: 0.1582
+  Min: 0.6650
+  Max: 0.9704
+
+YOLO10:
+  Mean: 0.9227
+  Median: 0.9065
+  Std Dev: 0.0365
+  Min: 0.8971
+  Max: 0.9646
+
+YOLO11:
+  Mean: 0.9724
+  Median: 0.9783
+  Std Dev: 0.0258
+  Min: 0.9441
+  Max: 0.9947
+
+YOLO12:
+  Mean: 0.9727
+  Median: 0.9805
+  Std Dev: 0.0245
+  Min: 0.9452
+  Max: 0.9923
+
+YOLO26:
+  Mean: 0.9701
+  Median: 0.9784
+  Std Dev: 0.0292
+  Min: 0.9377
+  Max: 0.9943
+
+YOLO8:
+  Mean: 0.9616
+  Median: 0.9685
+  Std Dev: 0.0313
+  Min: 0.9274
+  Max: 0.9888
+
+YOLO9:
+  Mean: 0.9740
+  Median: 0.9907
+  Std Dev: 0.0299
+  Min: 0.9394
+  Max: 0.9919
+
+YOLOE:
+  Mean: 0.9488
+  Median: 0.9497
+  Std Dev: 0.0249
+  Min: 0.9235
+  Max: 0.9733
+
+YOLOW:
+  Mean: 0.9493
+  Median: 0.9506
+  Std Dev: 0.0441
+  Min: 0.9045
+  Max: 0.9927
+
+
+2. FRIEDMAN TEST
+----------------------------------------
+Test Statistic: 8.7111
+P-value: 3.6725e-01
+Kendall's W (effect size): 0.3630
+Conclusion: No significant differences (p ≥ 0.05)
+
+
+4. EFFECT SIZES
+----------------------------------------
+
+Top 5 largest effect sizes:
+  YOLO10 vs YOLO12: Cohen's d = -1.606 (large)
+  YOLO10 vs YOLO11: Cohen's d = -1.570 (large)
+  YOLO10 vs YOLO9: Cohen's d = -1.535 (large)
+  YOLO10 vs YOLO26: Cohen's d = -1.434 (large)
+  RTDETR vs YOLO9: Cohen's d = -1.164 (large)
+
+
+================================================================================
+METRIC: box_mAP@50-95
+================================================================================
+
+1. DESCRIPTIVE STATISTICS
+----------------------------------------
+
+RTDETR:
+  Mean: 0.6052
+  Median: 0.6556
+  Std Dev: 0.1389
+  Min: 0.4481
+  Max: 0.7119
+
+YOLO10:
+  Mean: 0.6956
+  Median: 0.6499
+  Std Dev: 0.0948
+  Min: 0.6323
+  Max: 0.8046
+
+YOLO11:
+  Mean: 0.7420
+  Median: 0.6968
+  Std Dev: 0.0789
+  Min: 0.6961
+  Max: 0.8332
+
+YOLO12:
+  Mean: 0.7363
+  Median: 0.7417
+  Std Dev: 0.1133
+  Min: 0.6205
+  Max: 0.8468
+
+YOLO26:
+  Mean: 0.6973
+  Median: 0.6580
+  Std Dev: 0.1030
+  Min: 0.6196
+  Max: 0.8141
+
+YOLO8:
+  Mean: 0.7368
+  Median: 0.7546
+  Std Dev: 0.1205
+  Min: 0.6084
+  Max: 0.8474
+
+YOLO9:
+  Mean: 0.7318
+  Median: 0.7333
+  Std Dev: 0.0990
+  Min: 0.6321
+  Max: 0.8300
+
+YOLOE:
+  Mean: 0.7000
+  Median: 0.6995
+  Std Dev: 0.0314
+  Min: 0.6689
+  Max: 0.7316
+
+YOLOW:
+  Mean: 0.7276
+  Median: 0.6837
+  Std Dev: 0.1230
+  Min: 0.6325
+  Max: 0.8664
+
+
+2. FRIEDMAN TEST
+----------------------------------------
+Test Statistic: 5.9556
+P-value: 6.5221e-01
+Kendall's W (effect size): 0.2481
+Conclusion: No significant differences (p ≥ 0.05)
+
+
+4. EFFECT SIZES
+----------------------------------------
+
+Top 5 largest effect sizes:
+  RTDETR vs YOLO11: Cohen's d = -1.211 (large)
+  RTDETR vs YOLO9: Cohen's d = -1.049 (large)
+  RTDETR vs YOLO12: Cohen's d = -1.034 (large)
+  RTDETR vs YOLO8: Cohen's d = -1.012 (large)
+  RTDETR vs YOLOE: Cohen's d = -0.941 (large)
+
+
+================================================================================
+METRIC: box_mean_f1
+================================================================================
+
+1. DESCRIPTIVE STATISTICS
+----------------------------------------
+
+RTDETR:
+  Mean: 0.8027
+  Median: 0.8661
+  Std Dev: 0.1465
+  Min: 0.6352
+  Max: 0.9069
+
+YOLO10:
+  Mean: 0.9001
+  Median: 0.8800
+  Std Dev: 0.0435
+  Min: 0.8704
+  Max: 0.9500
+
+YOLO11:
+  Mean: 0.9546
+  Median: 0.9382
+  Std Dev: 0.0305
+  Min: 0.9358
+  Max: 0.9897
+
+YOLO12:
+  Mean: 0.9529
+  Median: 0.9464
+  Std Dev: 0.0335
+  Min: 0.9230
+  Max: 0.9892
+
+YOLO26:
+  Mean: 0.9480
+  Median: 0.9786
+  Std Dev: 0.0619
+  Min: 0.8768
+  Max: 0.9888
+
+YOLO8:
+  Mean: 0.9438
+  Median: 0.9558
+  Std Dev: 0.0471
+  Min: 0.8918
+  Max: 0.9837
+
+YOLO9:
+  Mean: 0.9565
+  Median: 0.9792
+  Std Dev: 0.0501
+  Min: 0.8991
+  Max: 0.9912
+
+YOLOE:
+  Mean: 0.9402
+  Median: 0.9435
+  Std Dev: 0.0228
+  Min: 0.9159
+  Max: 0.9612
+
+YOLOW:
+  Mean: 0.9332
+  Median: 0.9351
+  Std Dev: 0.0523
+  Min: 0.8800
+  Max: 0.9845
+
+
+2. FRIEDMAN TEST
+----------------------------------------
+Test Statistic: 12.5905
+P-value: 1.2674e-01
+Kendall's W (effect size): 0.5246
+Conclusion: No significant differences (p ≥ 0.05)
+
+
+4. EFFECT SIZES
+----------------------------------------
+
+Top 5 largest effect sizes:
+  YOLO10 vs YOLO11: Cohen's d = -1.450 (large)
+  RTDETR vs YOLO11: Cohen's d = -1.435 (large)
+  RTDETR vs YOLO12: Cohen's d = -1.413 (large)
+  RTDETR vs YOLO9: Cohen's d = -1.404 (large)
+  YOLO10 vs YOLO12: Cohen's d = -1.358 (large)
+

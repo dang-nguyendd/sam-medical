@@ -20,6 +20,9 @@ yolo_sam_v2/examples/
 yolo_sam_v2/logs/
 yolo_sam_v2/tests/
 
+# Report
+report/
+
 # Data
 data/**/*
 !data/**/

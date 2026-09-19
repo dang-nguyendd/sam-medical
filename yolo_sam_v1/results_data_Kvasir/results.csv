@@ -1,0 +1,4 @@
+dataset,model,box_mAP@50,box_mAP@50-95,box_mean_f1,box_mean_precision,box_mean_recall,seg_mAP@50,seg_mAP@50-95,seg_mean_f1,seg_mean_precision,seg_mean_recall
+Kvasir,{'metrics/precision(B)': 0.9035716241668061, 'metrics/recall(B)': 0.892437369595074, 'metrics/mAP50(B)': 0.9535628659990597, 'metrics/mAP50-95(B)': 0.7361828264462924, 'fitness': 0.7361828264462924},,,,,
+Kvasir,{'metrics/precision(B)': 0.9035716241668061, 'metrics/recall(B)': 0.892437369595074, 'metrics/mAP50(B)': 0.9535628659990597, 'metrics/mAP50-95(B)': 0.7361828264462924, 'fitness': 0.7361828264462924},,,,,
+Kvasir,{'metrics/precision(B)': 0.9035716241668061, 'metrics/recall(B)': 0.892437369595074, 'metrics/mAP50(B)': 0.9535628659990597, 'metrics/mAP50-95(B)': 0.7361828264462924, 'fitness': 0.7361828264462924},,,,,

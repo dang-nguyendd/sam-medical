@@ -1,0 +1,2 @@
+test,statistic,p_value,n_datasets,n_models,kendalls_w,significant,models
+Friedman,12.590529247910865,0.12673641082524187,3,9,0.5246053853296194,False,"['rtdetr', 'yolo10', 'yolo11', 'yolo12', 'yolo26', 'yolo8', 'yolo9', 'yoloe', 'yolow']"

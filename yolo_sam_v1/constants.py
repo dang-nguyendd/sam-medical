@@ -2,12 +2,12 @@ import os
 
 # === CONFIGURATION ===
 
-# MODEL OPTIONS: ["yolo11", "yolo12", "yolow"]
+# MODEL OPTIONS: ["rtdetr", "yolo8", "yolo9", "yolo10", "yolo11", "yolo12", "yolo26", "yoloe", "yolow"]
 MODEL = "yolo12"
-ALL_MODELS = ["yolo11", "yolo12", "yolow"]
+ALL_MODELS = ["rtdetr", "yolo8", "yolo9", "yolo10", "yolo11", "yolo12", "yolo26", "yoloe", "yolow", ]
 
-# DATA OPTIONS: ["CVC-ClinicDB", "CVC-ColonDB", "ETIS-LaribPolypDB"]
-DATA = "ETIS-LaribPolypDB"
+# DATA OPTIONS: ["CVC-ClinicDB", "CVC-ColonDB", "ETIS-LaribPolypDB", "Kvasir", "Kvasir_CVC-ClinicDB"]
+DATA = "Kvasir"
 
 
 data_root = f"./data/{DATA}/"
@@ -51,6 +51,18 @@ data_test_label_folder = f"{data_test_root}/labels/test/"  # Folder with ground 
 
 
 # === MODELS ===
+yolo8_model_name = "yolov8s"
+yolo8_model_config = f"{download_model_root}/{yolo8_model_name}.pt"
+yolo8_model_path = f"{results_saved_model_root}/{yolo8_model_name}.pt"
+
+yolo9_model_name = "yolov9s"
+yolo9_model_config = f"{download_model_root}/{yolo9_model_name}.pt"
+yolo9_model_path = f"{results_saved_model_root}/{yolo9_model_name}.pt"
+
+yolo10_model_name = "yolov10s"
+yolo10_model_config = f"{download_model_root}/{yolo10_model_name}.pt"
+yolo10_model_path = f"{results_saved_model_root}/{yolo10_model_name}.pt"
+
 yolo11_model_name = "yolo11s"
 yolo11_model_config = f"{download_model_root}/{yolo11_model_name}.pt"
 yolo11_model_path = f"{results_saved_model_root}/{yolo11_model_name}.pt"
@@ -59,9 +71,24 @@ yolo12_model_name = "yolo12s"
 yolo12_model_config = f"{download_model_root}/{yolo12_model_name}.pt"
 yolo12_model_path = f"{results_saved_model_root}/{yolo12_model_name}.pt"
 
+detr_model_name = "rtdetr-l"
+detr_model_config = f"{download_model_root}/{detr_model_name}.pt"
+detr_model_path = f"{results_saved_model_root}/{detr_model_name}.pt"
+
+yoloe_model_name = "yoloe-11s-seg"
+yoloe_model_config = f"{download_model_root}/{yoloe_model_name}.pt"
+yoloe_model_path = f"{results_saved_model_root}/{yoloe_model_name}.pt"
+
 yoloworld_model_name = "yolov8s-worldv2"
 yoloworld_model_config = f"{download_model_root}/{yoloworld_model_name}.pt"
 yoloworld_model_path = f"{results_saved_model_root}/{yoloworld_model_name}.pt"
+
+
+yolo26_model_name = "yolo26s"
+yolo26_model_config = f"{download_model_root}/{yolo26_model_name}.pt"
+yolo26_model_path = f"{results_saved_model_root}/{yolo26_model_name}.pt"
+
+
 
 
 # CONFIGURABLE SIZE CATEGORIES
@@ -74,9 +101,15 @@ SIZE_CATEGORIES = {
 }
 
 map_names = {
+    "rtdetr": "RT-DETR",
+    "yolo8": "YOLOv8",
+    "yolo9": "YOLOv9",
+    "yolo10": "YOLOv10",
     "yolo11": "YOLO11",
     "yolo12": "YOLO12",
-    "yolow": "YOLOWorld"
+    "yoloe": "YOLOE",
+    "yolow": "YOLOWorld",
+    "yolo26": "YOLO26"
 }
 
 def get_size_categories():

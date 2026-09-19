@@ -182,18 +182,39 @@ if __name__ == '__main__':
 
     model = sam_model_registry[model_type](checkpoint=checkpoint)
 
-    model.load_state_dict(
-        torch.load(
-            os.path.join("./model_pth/YOLOSAM_v1_freeze_image_run1_CVC-ClinicDB/YOLOSAM_v1_freeze_image_run1_CVC-ClinicDB-best.pth")
+    for i in range (1,4):
+        model.load_state_dict(
+            torch.load(
+                os.path.join(f"./model_pth/YOLOSAM_v1_freeze_image_run{i}_CVC-ClinicDB/YOLOSAM_v1_freeze_image_run{i}_CVC-ClinicDB-best.pth")
+            )
         )
-    )
 
-    model.eval()
+        model.eval()
 
-    test_results = test(model, bbox_coords_test, test_files)
+        test_results = test(model, bbox_coords_test, test_files)
 
-    print("Final Test Results:")
-    print(f"Dice:      {test_results['dice']:.4f}")
-    print(f"IoU:       {test_results['iou']:.4f}")
-    print(f"Precision: {test_results['precision']:.4f}")
-    print(f"Recall:    {test_results['recall']:.4f}")   
+        print(f"Final Test Results: ./model_pth/YOLOSAM_v1_freeze_image_run{i}_CVC-ClinicDB/YOLOSAM_v1_freeze_image_run{i}_CVC-ClinicDB-best.pth")
+        print(f"Dice:      {test_results['dice']:.4f}")
+        print(f"IoU:       {test_results['iou']:.4f}")
+        print(f"Precision: {test_results['precision']:.4f}")
+        print(f"Recall:    {test_results['recall']:.4f}")   
+
+    # for i in range (10, 23):
+
+    #     model.load_state_dict(
+    #         torch.load(
+    #             os.path.join(f"./model_pth/YOLOSAM_v1_run2_CVC-ClinicDB/YOLOSAM_v1_run2_CVC-ClinicDB{i}-last.pth")
+    #         )
+    #     )
+
+    #     model.eval()
+
+    #     test_results = test(model, bbox_coords_test, test_files)
+
+    #     print(f"Final Test Results: ./model_pth/YOLOSAM_v1_run2_CVC-ClinicDB/YOLOSAM_v1_run2_CVC-ClinicDB{i}-last.pth")
+    #     print(f"Dice:      {test_results['dice']:.4f}")
+    #     print(f"IoU:       {test_results['iou']:.4f}")
+    #     print(f"Precision: {test_results['precision']:.4f}")
+    #     print(f"Recall:    {test_results['recall']:.4f}")   
+
+
